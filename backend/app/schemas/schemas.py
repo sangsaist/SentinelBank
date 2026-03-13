@@ -43,3 +43,8 @@ class EngineStatusOut(BaseModel):
     rate: int
     count: int
     target: Optional[int] = None
+
+class TransactionCreate(BaseModel):
+    sender_id: str
+    receiver_id: str
+    amount: float

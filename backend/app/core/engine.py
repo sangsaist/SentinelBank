@@ -5,25 +5,60 @@ from sqlalchemy.orm import Session
 from app.db.database import SessionLocal
 from app.db.models import Account, Transaction, FraudAlert
 from app.core.fraud import detect_fraud
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
+from collections import deque
 
 engine_state = {"status": "stopped", "rate": 60, "count": 0, "target": None}
 _engine_thread = None
 
+# History to prevent engine-driven false positives
+engine_edge_history = deque(maxlen=20)
+last_five_senders = deque(maxlen=5)
+
 def run_engine(broadcast_fn):
     db: Session = SessionLocal()
     try:
-        accounts = db.query(Account).all()
-        account_ids = [a.account_id for a in accounts]
+        accounts_objs = db.query(Account).all()
+        account_ids = [a.account_id for a in accounts_objs]
         
         while engine_state["status"] != "stopped":
             if engine_state["status"] == "paused":
                 time.sleep(0.5)
                 continue
             
-            sender_id, receiver_id = random.sample(account_ids, 2)
-            amount = round(random.uniform(500, 15000), 2)
+            # Implementation of constraints to NEVER trigger fraud rules
+            max_attempts = 10
+            found_safe_pair = False
+            sender_id = None
+            receiver_id = None
+            
+            for _ in range(max_attempts):
+                # Constraint 2: Sender rotation (never same twice in a row)
+                eligible_senders = [aid for aid in account_ids if aid not in last_five_senders]
+                if not eligible_senders: eligible_senders = account_ids
+                
+                s = random.choice(eligible_senders)
+                r = random.choice([aid for aid in account_ids if aid != s])
+                
+                # Constraint 3: Prevent reverse edges to block engine-formed cycles
+                reverse_pair = (r, s)
+                if reverse_pair not in engine_edge_history:
+                    sender_id, receiver_id = s, r
+                    found_safe_pair = True
+                    break
+            
+            if not found_safe_pair:
+                sender_id, receiver_id = random.sample(account_ids, 2)
+
+            # Constraint 1: Safe amount (500-7999, never mult of 10k)
+            amount = round(random.uniform(500, 7999), 2)
+            while amount % 10000 == 0:
+                amount = round(random.uniform(500, 7999), 2)
+            
+            # Update histories
+            engine_edge_history.append((sender_id, receiver_id))
+            last_five_senders.append(sender_id)
             
             fraud_result = detect_fraud(sender_id, receiver_id, amount, db)
             
@@ -33,6 +68,7 @@ def run_engine(broadcast_fn):
                 sender_id=sender_id,
                 receiver_id=receiver_id,
                 amount=amount,
+                timestamp=datetime.now(timezone.utc),
                 is_fraud=fraud_result["is_fraud"],
                 risk_score=fraud_result["risk_score"],
                 color=fraud_result["color"],
@@ -50,7 +86,8 @@ def run_engine(broadcast_fn):
                     transaction_id=txn.transaction_id,
                     reason=txn.fraud_reason,
                     risk_score=txn.risk_score,
-                    pattern_type=txn.fraud_reason
+                    pattern_type=txn.fraud_reason,
+                    timestamp=txn.timestamp
                 )
                 db.add(alert)
                 db.commit()
@@ -99,8 +136,10 @@ def run_engine(broadcast_fn):
                 engine_state["status"] = "stopped"
                 break
                 
-            sleep_time = 60.0 / engine_state["rate"]
+            # Constraint 4: Always at least 1s between txns
+            sleep_time = max(1.0, 60.0 / engine_state["rate"])
             time.sleep(sleep_time)
+            
     finally:
         db.close()
 
