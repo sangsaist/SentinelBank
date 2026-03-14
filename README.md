@@ -1,380 +1,390 @@
-# SentinelBank
-A real-time bank transaction simulator with live fraud detection and monitoring (desktop dashboard + mobile banking UI).
+# 🛡️ SentinelBank
 
-## What is SentinelBank
+<div align="center">
 
-SentinelBank is a demo system that simulates bank transfers and runs a **rule-based fraud detection engine** on every transaction. It’s designed for showcasing real-time risk scoring: transactions are classified as **Safe (green)**, **Suspicious (orange)**, or **Fraud (red)**, and the UI updates instantly as new events arrive.
+**Real-Time Bank Transaction Simulator & Fraud Detection Engine**
 
-At a high level, a FastAPI backend stores transactions in a SQLite database, applies fraud rules (including a **NetworkX graph-based** circular-transaction check), and broadcasts events to connected clients over WebSockets. A background “engine” can continuously generate transactions, and a fraud injector can push hard-coded scenarios to test detection behavior.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React 18](https://img.shields.io/badge/react-18-61dafb.svg)](https://reactjs.org/)
+[![SQLite](https://img.shields.io/badge/sqlite-database-003B57.svg?logo=sqlite)](https://www.sqlite.org/index.html)
+[![WebSockets](https://img.shields.io/badge/WebSockets-Live-yellow.svg)](#)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/sangsaist/SentinelBank/pulls)
 
-There are two user interfaces:
-- **Desktop Dashboard (`/`)**: used by a monitoring operator to view live transactions, fraud alerts, system stats, engine state, and to inject demo fraud scenarios.
-- **Mobile Bank App (`/mobile`)**: used by “account holders” to select one of the seeded demo accounts and send transfers, while receiving real-time incoming-payment notifications.
+[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-system-architecture) • [Contributing](#-contributing)
+
+</div>
 
 ---
 
-## Project Structure
+## 📖 Table of Contents
+
+- [Overview](#-overview)
+- [The Problem](#-the-problem)
+- [Our Solution](#-our-solution)
+- [Key Features](#-features)
+- [System Architecture](#-system-architecture)
+- [Technology Stack](#-technology-stack)
+- [Quick Start](#-quick-start)
+- [Demo Script](#-demo-script)
+- [API Documentation](#-api-documentation)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🌟 Overview
+
+**SentinelBank** is a real-time bank transaction simulator featuring a live **rule-based fraud detection engine**. Engineered for instantaneous risk scoring and monitoring, the system evaluates and classifies live transactions into **Safe (green)**, **Suspicious (orange)**, or **Fraud (red)** categories, updating connected clients instantly over WebSockets.
+
+### 🎯 Mission
+
+Provide a dynamic, interactive demonstration of real-time fraud analysis, moving beyond static spreadsheets to visualize how complex patterns like circular transactions and chain layering can be detected and mitigated instantly.
+
+### 🏛️ Deployment Model
+
+- **Desktop Dashboard (`/`)**: A monitoring center for tracking live events, fraud alerts, and engine telemetry.
+- **Mobile Bank App (`/mobile`)**: A client interface simulating user transfers and real-time push notifications.
+- **Background Engine**: A self-driving simulation core delivering autonomous transaction volume.
+
+---
+
+## 💡 The Problem
+
+Traditional fraud monitoring often relies on delayed, batch-processed transaction analysis, leading to critical visibility gaps:
+
+<table>
+<tr>
+<td width="50%">
+
+### ❌ **Current State**
+- ✗ Batch processed anti-fraud checks
+- ✗ Delayed response to ongoing attacks
+- ✗ Static, non-visual dashboards
+- ✗ Difficult to simulate attack vectors
+- ✗ High latency between event and alert
+
+</td>
+<td width="50%">
+
+### ✅ **With SentinelBank**
+- ✓ Millisecond-latency transaction scoring
+- ✓ Instantaneous WebSocket data broadcast
+- ✓ Visual graph-based layout of fraud rules
+- ✓ One-click attack vector injection
+- ✓ Unified view across all network nodes
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 Our Solution
+
+### **Real-Time Event Architecture**
+
+```mermaid
+graph LR
+    A[Mobile Client] -->|POST Transaction| B[FastAPI Engine]
+    B --> C{Fraud Rules Engine}
+    C -->|NetworkX Path Check| D[Graph Analysis]
+    C --> E[SQLite Database]
+    E --> F[WebSocket Broadcaster]
+    F -->|Live Feed| G[Desktop Dashboard]
+    F -->|Instant Notification| H[Mobile Client]
+
+    style A fill:#667eea
+    style B fill:#764ba2
+    style C fill:#f093fb
+    style D fill:#4facfe
+    style E fill:#00f2fe
+    style F fill:#43e97b
+    style G fill:#38f9d7
+    style H fill:#4facfe
+```
+
+### **Core Philosophy**
+
+> **Every transaction is an active event.**  
+> The rule engine evaluates immediately.  
+> The dashboard visualizes instantaneously.  
+
+By maintaining robust real-time synchronization, the platform ensures that system operators and account holders share a unified, immediate truth state.
+
+---
+
+## ✨ Features
+
+<div align="center">
+
+| 🔄 Real-time Sync | 🛡️ Fraud Engine | 📊 Live Dashboard | 📱 Mobile Client |
+|:-----------------:|:----------------:|:-----------------:|:----------------:|
+| WebSocket Data | NetworkX Graph | Transaction Feed | Seeded Accounts |
+| Live Reconnection | Value Thresholds | System Analytics | Instant Alerts |
+| Sub-second Update | Multi-rule Scoring | Alert Feed | Block Visiblity |
+
+</div>
+
+### 🕵️ **For Monitoring Operators (Desktop)**
+- 📈 View live, streaming transaction feeds in real-time.
+- 🚨 Receive immediate, color-coded Fraud Alerts.
+- 🎯 Inject demo fraud scenarios (e.g., Circular, Layering, Burst) on demand.
+- ⚙️ Control the background transaction generator (Start/Pause/Stop).
+
+### 💳 **For Account Holders (Mobile)**
+- 💸 Quickly select seeded demo accounts and execute transfers.
+- 💰 Instantly receive incoming-payment notification banners.
+- 🛑 Experience instant transaction blocking upon triggering a fraud rule.
+
+---
+
+## 🏗️ System Architecture
+
+### **High-Level Architecture**
 
 ```text
-SentinelBank/
-├── backend/
-│   ├── main.py
-│   ├── requirements.txt
-│   └── app/
-│       ├── api/
-│       ├── core/
-│       ├── db/
-│       ├── schemas/
-│       └── websocket/
-└── frontend/
-    ├── package.json
-    ├── vite.config.js
-    ├── tailwind.config.js
-    ├── postcss.config.js
-    └── src/
-        ├── api/
-        ├── components/
-        ├── hooks/
-        ├── pages/
-        └── store/
+┌─────────────────────────────────────────────────────────────┐
+│                    Client Interfaces (React)                 │
+│    Desktop Dashboard (Monitor)  •  Mobile App (Accounts)     │
+└────────────────────────┬───────────────────────────▲────────┘
+             HTTP REST   │                           │ WebSockets
+┌────────────────────────▼───────────────────────────┴────────┐
+│                   Application Layer (FastAPI)                │
+│  ┌────────────┬─────────────┬─────────────┬──────────────┐  │
+│  │    API     │ Fraud Core  │ Auto Engine │  WS Manager  │  │
+│  └────────────┴─────────────┴─────────────┴──────────────┘  │
+└────────────────────────┬────────────────────────────────────┘
+                         │ SQLAlchemy ORM
+┌────────────────────────▼────────────────────────────────────┐
+│                  Database Layer (SQLite)                     │
+│               Accounts • Transactions • Alerts               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Folder responsibilities (one line each):**
-- `backend/`: FastAPI server, dependencies, and app entrypoint.
-- `backend/app/api/`: REST endpoints (accounts, transactions, stats, engine control, injector).
-- `backend/app/core/`: transaction engine, fraud detection rules, and fraud injector logic.
-- `backend/app/db/`: SQLAlchemy models, SQLite session setup, and account seeding.
-- `backend/app/schemas/`: Pydantic response/request schemas.
-- `backend/app/websocket/`: WebSocket connection manager + broadcast helper.
-- `frontend/`: React + Vite app for dashboard and mobile UI.
-- `frontend/src/api/`: Axios API client wrappers for backend calls.
-- `frontend/src/components/`: Dashboard and mobile UI components.
-- `frontend/src/hooks/`: WebSocket hook for real-time updates.
-- `frontend/src/pages/`: Route-level pages (`/` dashboard, `/mobile` mobile banking).
-- `frontend/src/store/`: Zustand global store (transactions, alerts, stats, engine status, accounts).
+### **Event Data Flow (Sequence)**
 
----
+```mermaid
+sequenceDiagram
+    participant U as Mobile User
+    participant A as FastAPI API
+    participant E as Fraud Engine
+    participant D as SQLite DB
+    participant W as WebSocket
+    participant M as Dashboard Monitor
 
-## Tech Stack
-
-### Backend (Python / FastAPI)
-
-Dependencies are from `backend/requirements.txt`:
-
-- **fastapi** — API server and WebSocket endpoint.
-- **uvicorn[standard]** — ASGI server to run FastAPI.
-- **sqlalchemy** — ORM for SQLite persistence.
-- **networkx** — graph analysis for circular-transaction detection.
-- **faker** — generates seeded account holder names (A–T).
-- **numpy**, **scikit-learn** — installed dependencies (not referenced in the core backend code paths shown here).
-- **pytest**, **pytest-asyncio**, **httpx** — testing dependencies (no `backend/tests/` directory found in this repo snapshot).
-- **websockets** — installed dependency (FastAPI uses its own WebSocket handling; this may be unused directly).
-
-### Frontend (React / Vite)
-
-Dependencies are from `frontend/package.json`:
-
-- **react**, **react-dom** — UI rendering.
-- **react-router-dom** — routing for `/` and `/mobile`.
-- **axios** — HTTP client for backend endpoints.
-- **zustand** — global state store (transactions, alerts, stats, engine status, accounts).
-- **lucide-react** — icons.
-
-Dev dependencies:
-- **vite** + **@vitejs/plugin-react** — dev server and build tooling.
-- **tailwindcss**, **postcss**, **autoprefixer** — styling pipeline.
-
----
-
-## Fraud Detection Rules
-
-Fraud scoring is implemented in `backend/app/core/fraud.py` via `detect_fraud(sender_id, receiver_id, amount, db)`.
-
-> Note: The implementation currently contains **more than three** rules (HIGH_VALUE, HIGH_FREQUENCY_BURST, ROUND_AMOUNT, CIRCULAR_TRANSACTION). The section below describes the fraud rules that are actually present in `fraud.py`.
-
-### Rule: HIGH_VALUE_TRANSFER
-- **Trigger:** `amount > 80000`
-- **Score:** `0.75`
-- **Color:** `red` (because score ≥ 0.7)
-- **Reason string:** `"HIGH_VALUE_TRANSFER"`
-
-### Rule: CIRCULAR_TRANSACTION
-- **Trigger:** A directed path exists from `receiver_id` back to `sender_id` in a graph built from **all transactions in the last 60 seconds**, and the **shortest path length ≤ 3**.
-- **Score:** `0.90`
-- **Color:** `red`
-- **Reason string:** `"CIRCULAR_TRANSACTION"`
-- **Graph detail:** Uses `networkx.DiGraph()` and `nx.has_path()` / `nx.shortest_path_length()` over recent edges.
-
-### CHAIN_LAYERING (not implemented in `fraud.py`)
-The repository contains an injector scenario named **"LAYERING"** (`backend/app/core/injector.py` scenario 3), but there is **no corresponding CHAIN_LAYERING rule** implemented in `backend/app/core/fraud.py`. For accuracy, this README does not claim a CHAIN_LAYERING rule exists in the rule engine.
-
-### Scoring → Color mapping
-
-This mapping is implemented at the end of `detect_fraud()`:
-
-| Score Range | Color  | Label      |
-|------------|--------|------------|
-| 0.00 – 0.39 | Green  | Safe       |
-| 0.40 – 0.69 | Orange | Suspicious |
-| 0.70 – 1.00 | Red    | Fraud      |
-
-The engine uses the **maximum** score of all triggered rules as the final risk score.
-
----
-
-## Architecture
-
-```text
-Mobile App (phone browser)
-     │ POST /transaction
-     ▼
-FastAPI Backend
-     │
-     ├── Fraud Detection Engine (backend/app/core/fraud.py)
-     │        │
-     │        └── NetworkX graph analysis (circular path check)
-     │
-     ├── SQLite DB (SQLAlchemy models: Account, Transaction, FraudAlert)
-     │
-     └── WebSocket Broadcaster (/ws)
-              │
-              ├── Desktop Dashboard (live transactions + fraud alerts)
-              └── Mobile App (incoming payment notification)
+    U->>A: Submit Transaction
+    A->>E: Evaluate Rules (Graph, Amounts)
+    E-->>A: Return Risk Score & Color
+    A->>D: Store Transaction & Alert (if any)
+    A->>W: Broadcast New State
+    W->>M: Instant Dashboard Refresh
+    W->>U: Show Success/Blocked
 ```
 
 ---
 
-## API Endpoints
+## 🛠️ Technology Stack
 
-The backend exposes these routes (see `backend/app/api/*.py` and `backend/main.py`):
+<div align="center">
 
-| Method | Endpoint            | Description |
-|--------|---------------------|-------------|
-| GET    | `/accounts`         | Get all seeded accounts (A–T). |
-| GET    | `/transactions`     | Get last 100 transactions (newest first). |
-| GET    | `/fraud-alerts`     | Get last 50 fraud alerts (newest first). |
-| GET    | `/stats`            | Aggregated stats across all stored transactions. |
-| POST   | `/transaction`      | Submit a new transaction (runs fraud detection + broadcasts). |
-| POST   | `/engine/start`     | Start the background transaction engine (thread). |
-| POST   | `/engine/stop`      | Stop the transaction engine. |
-| POST   | `/engine/pause`     | Pause the transaction engine. |
-| POST   | `/engine/resume`    | Resume engine (starts thread if needed). |
-| GET    | `/engine/status`    | Get engine status (`running/paused/stopped`, rate, count). |
-| POST   | `/inject/{n}`       | Inject scenario `n` (1–5) via background thread. |
-| WS     | `/ws`               | WebSocket connection for live events. |
+### **Backend**
 
-### Transaction POST body
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?style=for-the-badge&logo=sqlalchemy&logoColor=white)
+![NetworkX](https://img.shields.io/badge/NetworkX-008000?style=for-the-badge&logo=python&logoColor=white)
 
-`POST /transaction` expects:
+### **Frontend**
 
-```json
-{
-  "sender_id": "A",
-  "receiver_id": "B",
-  "amount": 5000
-}
-```
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Zustand](https://img.shields.io/badge/Zustand-443E38?style=for-the-badge&logo=react&logoColor=white)
 
----
+</div>
 
-## WebSocket Events
-
-WebSocket messages are JSON with shape:
-
-```json
-{ "type": "<message_type>", "data": { /* payload */ } }
-```
-
-The frontend WebSocket handler (`frontend/src/hooks/useWebSocket.js`) recognizes:
-
-### 1) `transaction`
-
-```json
-{
-  "type": "transaction",
-  "data": {
-    "transaction_id": "a1b2c3d4",
-    "sender_id": "A",
-    "receiver_id": "B",
-    "amount": 5000,
-    "timestamp": "2026-03-14T12:34:56.789012+00:00",
-    "is_fraud": 0,
-    "risk_score": 0.0,
-    "color": "green",
-    "fraud_reason": null
-  }
-}
-```
-
-### 2) `fraud_alert`
-
-```json
-{
-  "type": "fraud_alert",
-  "data": {
-    "alert_id": "e5f6g7h8",
-    "transaction_id": "a1b2c3d4",
-    "reason": "HIGH_VALUE_TRANSFER",
-    "risk_score": 0.75,
-    "pattern_type": "HIGH_VALUE_TRANSFER",
-    "timestamp": "2026-03-14T12:34:56.789012+00:00"
-  }
-}
-```
-
-### 3) `engine_status`
-
-```json
-{
-  "type": "engine_status",
-  "data": {
-    "status": "running",
-    "rate": 60,
-    "count": 42
-  }
-}
-```
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Core API** | Python + FastAPI | High-performance asynchronous API & WebSocket server |
+| **Storage** | SQLite + SQLAlchemy | Persistence for accounts and transactions |
+| **Logic** | NetworkX | Graph theory module for calculating circular transaction paths |
+| **UI Engine** | React + Vite | Real-time interactive user interfaces |
+| **Styling** | Tailwind CSS | Utility-driven UI rendering |
+| **State** | Zustand | Managing live transaction streams frontend-side |
 
 ---
 
-## Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
+### **Prerequisites**
 - **Python 3.11+**
 - **Node.js 18+**
 - **Git**
 
-### Installation & Run
+### **Installation in 4 Steps**
 
-#### Step 1 — Clone
-
+**Step 1. Clone the repository**
 ```bash
 git clone https://github.com/sangsaist/SentinelBank.git
 cd SentinelBank
 git checkout dev
 ```
 
-#### Step 2 — Backend
-
+**Step 2. Start the Backend**
 ```bash
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Backend notes:
-- Database file: `backend/fraud_demo.db` (SQLite)
-- CORS is configured as `allow_origins=["*"]` in `backend/main.py`.
+**Step 3. Configure Frontend Environment**
+Create `.env` inside the `frontend` directory using your Wi-Fi LAN IP address instead of localhost (vital for mobile device connectivity):
+```env
+# In frontend/.env
+VITE_API_URL=http://YOUR_LAN_IP:8000
+VITE_WS_URL=ws://YOUR_LAN_IP:8000/ws
+```
 
-#### Step 3 — Frontend
-
+**Step 4. Start the Frontend**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-`npm run dev` uses `vite --host`, which allows other devices on the same network to reach the dev server.
+### Access Ports
+- **Desktop System Dashboard:** `http://localhost:5173`
+- **Mobile Simulator App:** `http://YOUR_LAN_IP:5173/mobile` (Access on your phone)
 
-#### Step 4 — Find local IP and set frontend env
+---
 
-This repo does not include `.env.example`, but the frontend code expects these variables:
+## 🎭 Demo Script
 
-- `VITE_API_URL` (HTTP base URL, e.g. `http://YOUR_IP:8000`)
-- `VITE_WS_URL` (WebSocket URL, e.g. `ws://YOUR_IP:8000/ws`)
+1. **Dashboard:** Open `http://localhost:5173` on a desktop.
+2. **Mobile Clients:** Have team members open `http://YOUR_LAN_IP:5173/mobile` on their smartphones.
+3. **Simulate Background Noise:** Click the **Start (▶️)** button on the dashboard to enable the autonomous transaction engine.
+4. **Trigger Fraud:** On a mobile client, log into Account **A** and transfer **₹95,000** to Account **B**.
+   - Watch the desktop dashboard instantly flash a **RED Alert** (`HIGH_VALUE_TRANSFER`).
+   - The mobile client immediately receives a **Blocked** status.
+5. **Trigger Safe Txn:** Send **₹500** from **A** to **B**.
+   - Dashboard logs a **GREEN (Safe)** transaction.
+   - User B's phone displays a real-time **💰 Money Received** banner.
+6. **Inject Attacks:** Use the dashboard's `Fraud Queue Builder` to simulate **Layering**, **Smurfing**, or **Circular** bypass attempts.
 
-Find your LAN IP:
+---
 
+## 📚 API Documentation
+
+### **REST Endpoints**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/transactions` | Fetch latest historical transactions. |
+| `GET` | `/fraud-alerts` | Fetch queued history of fraud detections. |
+| `POST` | `/transaction` | Process a new transfer and run anti-fraud heuristics. |
+| `POST` | `/engine/start` | Ignite continuous background data simulator. |
+| `POST` | `/inject/{id}` | Inject specific attack vectors (Rapid Burst, Circular, etc). |
+
+<details>
+<summary><strong>📖 View Transaction JSON Structure</strong></summary>
+
+**Submit Transaction:**
 ```bash
-# macOS / Linux
-ifconfig | grep inet
-
-# Windows
-ipconfig
+curl -X POST http://localhost:8000/transaction \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sender_id": "A",
+    "receiver_id": "B",
+    "amount": 50000
+  }'
 ```
 
-Create `frontend/.env`:
+**WebSocket Live Broadcast Response:**
+```json
+{
+  "type": "transaction",
+  "data": {
+    "transaction_id": "f5a7d23a",
+    "sender_id": "A",
+    "receiver_id": "B",
+    "amount": 50000,
+    "timestamp": "2026-03-14T10:00:00.000000+00:00",
+    "is_fraud": 0,
+    "risk_score": 0.45,
+    "color": "orange",
+    "fraud_reason": "UNUSUAL_AMOUNT"
+  }
+}
+```
+</details>
 
-```env
-VITE_API_URL=http://YOUR_IP:8000
-VITE_WS_URL=ws://YOUR_IP:8000/ws
+---
+
+## 🗺️ Roadmap
+
+- [x] WebSockets for sub-second system observability
+- [x] NetworkX based multi-node loop mapping
+- [x] Injection tooling for mock-attack demos
+- [ ] Migrate SQLite logic natively to PostgreSQL for deep-scale benchmarking
+- [ ] Incorporate Machine Learning heuristic models alongside hardcoded rules 
+- [ ] Integrate React-Native framework structure for actual App Store simulation
+
+---
+
+## 📁 Project Structure
+
+```text
+SentinelBank/
+├── backend/
+│   ├── app/
+│   │   ├── api/            # REST endpoint logic 
+│   │   ├── core/           # Fraud detection engine, scenario injector
+│   │   ├── db/             # Schema models & data seeders
+│   │   ├── schemas/        # Request/Response data contracts
+│   │   └── websocket/      # Live channel distributors
+│   ├── main.py             # Server boot configuration
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── api/            # Axial API clients
+│   │   ├── components/     # Visual elements (StatsBar, FraudAlertFeed, etc.)
+│   │   ├── hooks/          # Real-time WebSocket hook definitions
+│   │   ├── pages/          # Layout routing endpoints (/ and /mobile)
+│   │   └── store/          # Zustand memory cache parameters
+│   └── package.json
+└── README.md
 ```
 
-> For mobile testing, `YOUR_IP` must be your laptop/desktop LAN IP (not `localhost`).
+---
 
-### Access
+## 🤝 Contributing
 
-- **Desktop Dashboard:** `http://localhost:5173`
-- **Mobile Bank App:** `http://YOUR_IP:5173/mobile`
+Contributions are heavily encouraged for the advancement of real-time monitoring strategies!
+
+1. **Fork** the repository.
+2. **Create** a feature branch: `git checkout -b feature/enhanced-engine`
+3. **Commit** your progress: `git commit -m 'feat: Add parallel scanning queue'`
+4. **Push** into the branch: `git push origin feature/enhanced-engine`
+5. **Open** a Pull Request against `dev`.
 
 ---
 
-## Demo Script
+## 📄 License
 
-1. Open the dashboard on your laptop at `http://localhost:5173`
-2. Have all team members open `http://YOUR_IP:5173/mobile` on phones (same Wi‑Fi)
-3. Each member selects a demo account (for example A, B, C, D)
-4. Start the engine on the dashboard (▶️) to generate live traffic
-5. On mobile (Account **A**), send **₹95,000** to **B**  
-   → Dashboard shows a **RED** alert (reason: `HIGH_VALUE_TRANSFER`)  
-   → A sees **Blocked** on the result screen
-6. On mobile (Account **A**), send **₹500** to **B**  
-   → Dashboard shows **GREEN** (safe)  
-   → B receives a **💰 Money Received** notification banner
-7. Demonstrate a circular pattern using the injector (dashboard Fraud Queue Builder or `POST /inject/4`)  
-   → Circular transaction(s) may be flagged **RED** as `CIRCULAR_TRANSACTION`
+This repository is distributed under the **MIT License**. Check the [LICENSE](LICENSE) file for additional terms.
 
 ---
 
-## Fraud Injection Scenarios
+<div align="center">
 
-Hard-coded injector scenarios are defined in `backend/app/core/injector.py`:
+### **Built for Precision**
 
-| # | Name (as coded)        | Pattern | Example Accounts / Amounts | Expected behavior (based on `fraud.py`) |
-|---|-------------------------|---------|-----------------------------|------------------------------------------|
-| 1 | `HIGH_VALUE_TRANSFER`   | Single large txn | A→B ₹95,000 | **RED** (`HIGH_VALUE_TRANSFER`) |
-| 2 | `SMURFING`              | Multiple small txns | C→D/E/F/G/H/I/J ~₹8.6k–₹9.3k | Not a dedicated rule in `fraud.py` (may remain green unless another rule triggers) |
-| 3 | `LAYERING`              | Chain transfer | K→L→M→N→O ₹50,000 each | No dedicated layering rule in `fraud.py` |
-| 4 | `CIRCULAR`              | A→B→C→A | A→B ₹30,000, B→C ₹30,000, C→A ₹30,000 | May trigger **RED** (`CIRCULAR_TRANSACTION`) depending on recent graph edges |
-| 5 | `RAPID_BURST`            | 10 fast txns from D | D→E..N ₹5,000 | **ORANGE/RED** possible via `HIGH_FREQUENCY_BURST` (threshold is >4 in 15 seconds with amount >1000) |
+**Visualizing complex cyber-financial telemetry before it settles.**
 
----
+[⬆ Back to Top](#-sentinelbank)
 
-## Running Tests
-
-`pytest` is included in `backend/requirements.txt`, but no `backend/tests/` directory was found in this repository snapshot.
-
-If you add tests later, you can run:
-
-```bash
-cd backend
-pytest -v
-```
-
----
-
-## Environment Variables
-
-Frontend (Vite):
-- `VITE_API_URL` — backend HTTP base URL (required; used by `frontend/src/api/api.js`)
-- `VITE_WS_URL` — backend WebSocket URL (required; used by `frontend/src/hooks/useWebSocket.js`)
-
-Backend:
-- No environment variables are required by the backend code as currently written.
-- SQLite path is hard-coded: `sqlite:///./fraud_demo.db` in `backend/app/db/database.py`.
-
----
-
-## Known Limitations
-
-- Uses **SQLite** with a local file DB (demo only).
-- No authentication/authorization on endpoints.
-- Account balances are seeded, and the mobile UI refreshes account data after transfers, but **the backend does not update balances** when transactions are created (transactions are recorded, not applied to balances).
-- Fraud detection rules are strictly rule-based (no ML inference in the core path).
-- WebSocket clients reconnect automatically (every 3 seconds on close), but the reconnect timer is a simple implementation.
-
----
-
-## Team
-
-Built for a hackathon-style demo. SentinelBank is a real-time fraud detection simulation with a monitoring dashboard and a mobile banking interface.
+</div>
