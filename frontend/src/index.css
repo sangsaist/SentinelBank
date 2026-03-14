@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: #0a0f1e;
+  color: white;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Custom Scrollbar for Desktop Dashboard */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-[#0a0f1e];
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-[#1a2035] rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-[#3b82f6];
+}
+
+/* Animations */
+@keyframes slide-down-fade {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-new-row {
+  animation: slide-down-fade 0.3s ease-out forwards;
+}
+
+/* Hide scrollbars for mobile UI */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

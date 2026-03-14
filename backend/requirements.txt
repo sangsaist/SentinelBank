@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+networkx
+faker
+scikit-learn
+numpy
+pytest
+pytest-asyncio
+httpx
+websockets
