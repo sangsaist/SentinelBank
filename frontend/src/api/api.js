@@ -49,6 +49,12 @@ export const resumeEngine = async () => {
   return response.data;
 };
 
+export const resetDatabase = async () => {
+  const response = await api.post('/engine/reset');
+  window.location.reload(); 
+  return response.data;
+};
+
 export const sendTransaction = async (sender_id, receiver_id, amount) => {
   const response = await api.post('/transaction', {
     sender_id,

@@ -30,3 +30,8 @@ def post_engine_resume(request: Request):
 @router.get("/status", response_model=EngineStatusOut)
 def get_engine_status():
     return engine_state
+
+@router.post("/reset", response_model=EngineStatusOut)
+def post_engine_reset():
+    from app.core.engine import reset_everything
+    return reset_everything()

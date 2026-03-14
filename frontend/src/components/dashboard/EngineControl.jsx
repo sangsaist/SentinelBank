@@ -73,6 +73,19 @@ const EngineControl = () => {
           <Square size={14} className="mx-auto" />
         </button>
       </div>
+
+      <button
+        onClick={() => {
+          if (window.confirm("CRITICAL: Wipe all transactions and reset system?")) {
+            handleAction(api.resetDatabase);
+          }
+        }}
+        disabled={loading}
+        className="w-full py-2 bg-red-600/10 text-red-500 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] hover:bg-red-600 hover:text-white transition-all disabled:opacity-20 flex items-center justify-center gap-2"
+      >
+        <RotateCcw size={10} className={loading ? 'animate-spin' : ''} />
+        Reset System Database
+      </button>
     </div>
   );
 };

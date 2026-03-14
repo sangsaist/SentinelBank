@@ -114,6 +114,19 @@ const EngineControlPanel = () => {
             disabled={engineStatus.status === 'stopped' || loading}
           />
         </div>
+
+        <button
+          onClick={() => {
+            if (window.confirm("CRITICAL: This will delete all transactions and alerts. Continue?")) {
+              handleAction(api.resetDatabase);
+            }
+          }}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 py-4 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 font-black tracking-[0.2em] text-[10px] uppercase disabled:opacity-20 mt-4 shadow-lg shadow-red-500/5"
+        >
+          <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Reset Database & History
+        </button>
       </div>
 
       <div className="p-4 bg-blue-600/5 flex items-center gap-3">

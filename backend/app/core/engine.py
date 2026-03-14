@@ -27,34 +27,58 @@ def run_engine(broadcast_fn):
                 time.sleep(0.5)
                 continue
             
-            # Implementation of constraints to NEVER trigger fraud rules
-            max_attempts = 10
+            # Constraint Logic: Sync with Fraud Detector window (120s)
+            import networkx as nx
+            from datetime import timedelta
+            
+            # Build the current "reality" graph from the DB (same as fraud.py)
+            graph_cutoff = datetime.now(timezone.utc) - timedelta(seconds=120)
+            recent_txns = db.query(Transaction).filter(Transaction.timestamp >= graph_cutoff).all()
+            
+            temp_G = nx.DiGraph()
+            for t in recent_txns:
+                temp_G.add_edge(t.sender_id, t.receiver_id)
+
+            max_attempts = 15
             found_safe_pair = False
             sender_id = None
             receiver_id = None
             
             for _ in range(max_attempts):
-                # Constraint 2: Sender rotation (never same twice in a row)
                 eligible_senders = [aid for aid in account_ids if aid not in last_five_senders]
                 if not eligible_senders: eligible_senders = account_ids
                 
                 s = random.choice(eligible_senders)
                 r = random.choice([aid for aid in account_ids if aid != s])
                 
-                # Constraint 3: Prevent reverse edges to block engine-formed cycles
-                reverse_pair = (r, s)
-                if reverse_pair not in engine_edge_history:
-                    sender_id, receiver_id = s, r
-                    found_safe_pair = True
-                    break
+                # 1. ANTI-CIRCULAR: Blocks r -> s loop paths
+                if temp_G.has_node(r) and temp_G.has_node(s):
+                    if nx.has_path(temp_G, r, s):
+                        continue
+                
+                # 2. ANTI-LAYERING: Don't pick s if A->B->S already exists (adding S->R would be 4th node)
+                if temp_G.has_node(s):
+                    is_layering = False
+                    for node in temp_G.nodes():
+                        try:
+                            if nx.has_path(temp_G, node, s):
+                                path = nx.shortest_path(temp_G, node, s)
+                                if len(path) >= 3: # Path is path A->B->S (3 nodes)
+                                    is_layering = True
+                                    break
+                        except: continue
+                    if is_layering: continue
+
+                sender_id, receiver_id = s, r
+                found_safe_pair = True
+                break
             
             if not found_safe_pair:
+                # Absolute fallback if no safe pair found (rare)
                 sender_id, receiver_id = random.sample(account_ids, 2)
 
-            # Constraint 1: Safe amount (500-7999, never mult of 10k)
-            amount = round(random.uniform(500, 7999), 2)
-            while amount % 10000 == 0:
-                amount = round(random.uniform(500, 7999), 2)
+            # Constraint 1: Safe amount (500-7999, never >= 10k)
+            amount = round(random.uniform(1000, 7999), 2)
             
             # Update histories
             engine_edge_history.append((sender_id, receiver_id))
@@ -162,3 +186,33 @@ def resume_engine(broadcast_fn):
     if _engine_thread is None or not _engine_thread.is_alive():
         _engine_thread = threading.Thread(target=run_engine, args=(broadcast_fn,), daemon=True)
         _engine_thread.start()
+
+def reset_everything():
+    # 1. Stop engine
+    engine_state["status"] = "stopped"
+    engine_state["count"] = 0
+    engine_state["target"] = None
+    
+    # 2. Clear in-memory history
+    engine_edge_history.clear()
+    last_five_senders.clear()
+    
+    # 3. Clear database tables
+    from app.db.database import SessionLocal
+    from app.db.models import Transaction, FraudAlert, Account
+    from app.db.seed import seed_accounts
+    
+    db = SessionLocal()
+    try:
+        db.query(FraudAlert).delete()
+        db.query(Transaction).delete()
+        db.query(Account).delete()
+        db.commit()
+        
+        # 4. Re-seed accounts
+        seed_accounts(db)
+        db.commit()
+    finally:
+        db.close()
+    
+    return engine_state
